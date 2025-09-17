@@ -1225,8 +1225,17 @@ SECTIONS = [
     "Leaderboard & Compare",
 ]
 
-# ---- Get the active tab (replace your old segmented_control/radio lines with this)
-active = nav_control(SECTIONS)
+# ---- Simple, robust navigation (works on all Streamlit versions) ----
+# (Keep your existing SECTIONS list; don't redefine it if it's already above)
+default = st.session_state.get("active_section", SECTIONS[0])
+active = st.radio(
+    "Navigate",
+    SECTIONS,
+    index=SECTIONS.index(default) if default in SECTIONS else 0,
+    key="nav_radio",
+)
+st.session_state["active_section"] = active
+
 
 
 cprev, cnext = st.columns([1, 1])
