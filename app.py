@@ -1160,20 +1160,74 @@ SECTIONS = [
 ]
 
 
-if hasattr(st, "segmented_control"):
-    active = st.segmented_control(
+# if hasattr(st, "segmented_control"):
+#     active = st.segmented_control(
+#         "Navigate",
+#         SECTIONS,
+#         selection=st.session_state.get("active_section", SECTIONS[0]),
+#         help="Use these pills to jump between sections."
+#     )
+# else:
+#     active = st.sidebar.radio(
+#         "Navigate",
+#         SECTIONS,
+#         index=SECTIONS.index(st.session_state.get("active_section", SECTIONS[0]))
+#     )
+# st.session_state["active_section"] = active
+
+# --- Robust nav control: works across Streamlit versions ---
+def nav_control(options):
+    """
+    Returns the selected item from `options`.
+    Uses segmented_control if available; otherwise falls back to radio.
+    Tries multiple known signatures to avoid TypeError on older builds.
+    """
+    default = st.session_state.get("active_section", options[0])
+    seg = getattr(st, "segmented_control", None)
+
+    if callable(seg):
+        # Try progressively simpler signatures (no 'help' arg — older builds error on it)
+        trials = (
+            dict(selection=default),  # newer API
+            dict(default=default),    # mid API
+            dict(index=options.index(default) if default in options else 0),  # older API
+            dict(),                   # last resort
+        )
+        for kwargs in trials:
+            try:
+                choice = seg("Navigate", options, key="nav_seg", **kwargs)
+                st.session_state["active_section"] = choice
+                return choice
+            except TypeError:
+                continue
+            except Exception:
+                break  # if seg itself is flaky, drop to radio
+
+    # Fallback: always works
+    choice = st.radio(
         "Navigate",
-        SECTIONS,
-        selection=st.session_state.get("active_section", SECTIONS[0]),
-        help="Use these pills to jump between sections."
+        options,
+        index=options.index(default) if default in options else 0,
+        key="nav_radio",
     )
-else:
-    active = st.sidebar.radio(
-        "Navigate",
-        SECTIONS,
-        index=SECTIONS.index(st.session_state.get("active_section", SECTIONS[0]))
-    )
-st.session_state["active_section"] = active
+    st.session_state["active_section"] = choice
+    return choice
+
+# ---- Define your sections (use your existing list if you already have one)
+SECTIONS = [
+    "Executive Overview",
+    "Payer & Revenue Mix",
+    "Cost & Productivity",
+    "Access & Throughput",
+    "Service Lines",
+    "Liquidity & Capital",
+    "Ownership Models",
+    "Leaderboard & Compare",
+]
+
+# ---- Get the active tab (replace your old segmented_control/radio lines with this)
+active = nav_control(SECTIONS)
+
 
 cprev, cnext = st.columns([1, 1])
 if cprev.button("◀ Prev"):
